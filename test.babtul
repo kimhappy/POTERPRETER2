@@ -1,0 +1,136 @@
+// 변수 선언, 출력
+print_num(`a = 10)// 주석
+
+//if문의 지연평가
+if(1, print_num(10), print_num(20))
+
+//함수 선언, 함수 내 함수 선언, 자기 자신을 가리키는 NYA
+#def fibo(n)
+  #def fibo_impl(n, a, b)
+    if(same(n, 1), b, NYA(sub(n, 1), b, add(a, b)))
+  end
+  fibo_impl(n, 0, 1)
+end
+
+//고차함수
+#def runner(func, para)
+  func(para)
+end
+
+//함수 실행
+runner(print_num, fibo(10))
+
+//스코프 테스트
+#def adefer()
+  `a = 10
+  bdefer()
+end
+
+#def bdefer()
+  `b = 20
+  cdefer()
+end
+
+#def cdefer()
+  `c = 30
+  adefer2()
+end
+
+#def adefer2()
+  `a = 40
+  printer()
+end
+
+#def printer()
+  print_num(a)
+  print_char(10)
+  print_num(b)
+  print_char(10)
+  print_num(c)
+end
+
+adefer()
+
+//캡쳐를 사용한 바인딩
+#def binder(func, para1)
+  #def ret(para2)
+    [func]([para1], para2)
+  end
+  !ret
+end
+
+//람다 함수
+`f = binder(lambda(x1, x2)(add(x1, x2)), 10)
+print_num(f(20))
+
+//캡쳐 실험
+`a = 10
+`b = 20
+//여러줄 람다 
+`func = lambda(x1, x2)(print_num(x1), print_char(10), print_num(x2))
+
+`haha = lambda()([func(a, b)], print_char(10), func(a, b))
+`hoho = !haha
+
+a = 30
+b = 40
+`func = lambda(x1, x2)(print_num(x2), print_char(10), print_num(x1))
+
+hoho()
+
+//배열 구현
+`_size = -1
+
+#def Arr(index)
+  0
+end
+
+#def assign(a, i, v)
+  `ret = lambda(index)(if(same(index, [i]), [v], [a](index)))
+  !ret
+end
+
+//자주 캡쳐되는 것들은 미리 캡쳐해서 변수에 저장해둬야 효과적
+#def insert(a, i, v)
+  `ret = lambda(index)([`ca = a], [`ci = i], if(same(index, _size), add(ca(_size), 1), if(less(index, ci), ca(index), if(same(index, ci), [v], ca(sub(index, 1))))))    
+  !ret
+end
+
+#def erase(a, i)
+  `ret = lambda(index)([`ca = a], if(same(index, _size), sub(ca(_size), 1), if(less(index, [i]), ca(index), ca(add(index, 1)))))
+  !ret
+end
+
+#def push_front(a, v)
+  `ret = lambda(index)([`ca = a], if(same(index, _size), add(ca(_size), 1), if(same(index, 0), [v], ca(sub(index, 1)))))
+  !ret
+end
+
+#def push_back(a, v)
+  `ret = lambda(index)([`ca = a], if(same(index, _size), add(ca(_size), 1), if(same(index, ca(_size)), [v], ca(index))))
+  !ret
+end
+
+#def pop_back(a)
+  `ret = lambda(index)([`ca = a], if(same(index, _size), sub(ca(_size), 1), ca(index)))
+  !ret
+end
+
+#def pop_front(a)
+  `ret = lambda(index)([`ca = a]if(same(index, _size), sub(ca(_size), 1), ca(add(index, 1))))
+  !ret
+end
+
+#def for_each(a, func)
+  lambda(index)(if(less(index, a(_size)), add(func(a(index)), NYA(add(index, 1))), 0))(0)
+end
+
+//사용
+`haha = Arr
+
+haha = push_back(haha, 10)
+haha = push_back(haha, 20)
+haha = push_back(haha, 30)
+haha = push_back(haha, 40)
+
+for_each(haha, lambda(x)(print_num(x), print_char(10)))
