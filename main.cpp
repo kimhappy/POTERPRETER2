@@ -328,10 +328,6 @@ std::string Tree::to_s() {
     }
 }
 
-    std::shared_ptr< Tree > decl;
-    std::vector< std::shared_ptr< Tree > > contents;
-
-//todo: impl
 UFunc UFunc::copy() {
     std::vector< std::shared_ptr< Tree > > ncontents(contents.size());
 
