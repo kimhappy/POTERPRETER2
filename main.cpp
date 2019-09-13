@@ -1,12 +1,14 @@
-//-std=c++2a
+// C++17 or above, GCC recommend
+// todo: capture optimization
+
 #include <bits/stdc++.h>
 
 #define ef else if
 #define cf if constexpr
 
-class Tree;
 class UFunc;
 class Val;
+class Tree;
 
 using F64   = double;
 using DFunc = std::function< Val(std::vector< Val >&) >;
@@ -37,7 +39,7 @@ public:
     enum class Type{ NONE, UFUNC, DFUNC, NUM };
 
     Val() {}
-    Val(auto val): val(val) {}
+    Val(const auto& val): val(val) {}
 
     Val copy();
     Type type();
@@ -124,6 +126,101 @@ namespace Helper {
     }
 }
 
+UFunc UFunc::copy() {
+    std::vector< std::shared_ptr< Tree > > ncontents(contents.size());
+    for(int i = 0; i < contents.size(); ++i)
+        ncontents[ i ] = std::make_shared< Tree >(contents[ i ]->copy());
+    return { std::make_shared< Tree >(decl->copy()), ncontents };
+}
+
+// todo: 최적화
+Val UFunc::capture() {
+    UFunc ret = this->copy();
+    for(auto& i: ret.contents) i->capture(false);
+    return ret;
+}
+
+Val UFunc::run(const std::vector< Val >& para) {
+    var_stack.resize(var_stack.size() + 1);
+    for(int i = 0; i < para.size(); ++i)
+        var_stack.back()[ decl->tail[ i ]->atom ] = para[ i ];
+    var_stack.back()[ "NYA" ] = this->copy();
+    for(int i = 0; i < contents.size() - 1; Helper::eval_line(contents, i));
+    Val ret = contents[ contents.size() - 1 ]->eval();
+    var_stack.pop_back();
+    return ret;
+}
+
+std::string UFunc::to_s() {
+    std::string s = "{ decl: " + decl->to_s() + ", contents: { ";
+    for(auto& i: contents) s += i->to_s() + ", ";
+    return s.substr(0, s.size() - 2) + " }";
+}
+
+Val Val::copy() {
+    return (type() == Type::UFUNC) ? get< UFunc >().copy() : val;
+}
+
+Val::Type Val::type() {
+    return static_cast< Type >(val.index());
+}
+
+std::string Val::to_s() {
+    switch(type()) {
+        case Type::NONE:  return "None";
+        case Type::UFUNC: return get< UFunc >().to_s();
+        case Type::DFUNC: return "DFunc";
+        case Type::NUM:   return std::to_string(get< F64 >());
+    }
+}
+
+std::string Val::to_c() {
+    switch(type()) {
+        case Type::NONE:  return "None";
+        case Type::UFUNC: return get< UFunc >().to_s();
+        case Type::DFUNC: return "DFunc";
+        case Type::NUM:   return std::string(1, get< F64 >());
+    }
+}
+
+template< typename T >
+T& Val::get() {
+    return std::get< T >(val);
+}
+
+std::shared_ptr< Tree > Helper::read_line(std::vector< std::shared_ptr< Tree > >& container, int line) {
+    while(container.size() <= line) {
+        std::string s;
+        if(lc) std::cout << '\n';
+        lc = false;
+        std::getline(std::cin, s);
+        if(s == "EXIT") std::exit(0);
+        s.erase(0, s.find_first_not_of(' '));
+        if((s = s.substr(0, s.find("//"))).empty()) continue;
+        container.emplace_back(new Tree(s));
+    }
+    return container[ line ];
+}
+
+Val Helper::eval_line(std::vector< std::shared_ptr< Tree > >& container, int& line) {
+    int bi = line + 1;
+    std::shared_ptr< Tree > tr1 = Helper::read_line(container, line);
+
+    if(tr1->expr == Tree::Expr::decl_func_start) {
+        for(int t1 = 1; ; ) {
+            std::shared_ptr< Tree > tr2 = read_line(container, ++line);
+            t1 += (tr2->expr == Tree::Expr::decl_func_start)
+                - (tr2->expr == Tree::Expr::decl_func_end);
+            if(t1 == 0) break;
+        }
+        return var_stack.back()[ tr1->head->head->atom ]
+             = UFunc(tr1->head, std::vector(container.begin() + bi, container.begin() + line++));
+    }
+
+    ++line;
+    return tr1->eval();
+}
+
 Tree::Tree(std::string s) {
     if(s[ 0 ] == '#') {
         expr = Expr::decl_func_start;
@@ -167,7 +264,6 @@ Tree::Tree(std::string s) {
             expr = Expr::var;
             atom = s;
         }
-
         return;
     }
 
@@ -206,26 +302,9 @@ Tree::Tree(std::string s) {
 
 Tree Tree::copy() {
     std::vector< std::shared_ptr< Tree > > ntail(tail.size());
-
     for(int i = 0; i < tail.size(); ++i)
         ntail[ i ] = std::make_shared< Tree >(tail[ i ]->copy());
-
-    if(head == nullptr)
-        return {
-            .expr = expr,
-            .val  = val.copy(),
-            .atom = atom,
-            .head = nullptr,
-            .tail = ntail
-        };
-
-    return {
-        .expr = expr,
-        .val  = val.copy(),
-        .atom = atom,
-        .head = std::make_shared< Tree >(head->copy()),
-        .tail = ntail
-    };
+    return { expr, val.copy(), atom, head == nullptr ? nullptr : std::make_shared< Tree >(head->copy()), ntail };
 }
 
 Val Tree::eval() {
@@ -235,16 +314,12 @@ Val Tree::eval() {
             for(auto i = var_stack.rbegin(); i != var_stack.rend(); ++i)
                 if(auto fi = i->find(atom); fi != i->end())
                     return fi->second;
-            std::cout << '\'' << atom << "\' not found!\n";
-            std::exit(0);
         }
         case Expr::decl_var: return var_stack.back()[ atom ] = head->eval();
         case Expr::assign: {
             for(auto i = var_stack.rbegin(); i != var_stack.rend(); ++i)
                 if(auto fi = i->find(atom); fi != i->end())
                     return fi->second = head->eval();
-            std::cout << '\'' << atom << "\' not found!\n";
-            std::exit(0);
         }
         case Expr::now_capture: return head->eval().get< UFunc >().capture();
         case Expr::function_call: {
@@ -273,7 +348,6 @@ void Tree::capture(bool flag) {
                 val  = eval();
                 expr = Expr::now_val;
             }
-
             return;
         }
         case Expr::to_capture: {
@@ -285,7 +359,6 @@ void Tree::capture(bool flag) {
                 tail = head->tail;
                 head = head->head;
             }
-
             return;
         }
         case Expr::function_call: {
@@ -305,134 +378,31 @@ void Tree::capture(bool flag) {
 
 std::string Tree::to_s() {
     switch(expr) {
-        case Expr::decl_func_start: return std::string("decl_function_start(") + head->to_s() + ')';
-        case Expr::decl_func_end:   return "end";
-        case Expr::to_capture:      return std::string("to_capture(") + head->to_s() + ')';
-        case Expr::decl_var:        return std::string("decl_var(") + atom + ", " + head->to_s() + ')';
-        case Expr::assign:          return std::string("assign(") + atom + ", " + head->to_s() + ')';
-        case Expr::now_capture:     return std::string("now_capture(") + head->to_s() + ')';
+        case Expr::decl_func_start: return "__decl_function_start(" + head->to_s() + ')';
+        case Expr::decl_func_end:   return "__end";
+        case Expr::to_capture:      return "__to_capture(" + head->to_s() + ')';
+        case Expr::decl_var:        return "__decl_var(" + atom + ", " + head->to_s() + ')';
+        case Expr::assign:          return "__assign(" + atom + ", " + head->to_s() + ')';
+        case Expr::now_capture:     return "__now_capture(" + head->to_s() + ')';
         case Expr::var:             return atom;
         case Expr::now_val:         return val.to_s();
         case Expr::lambda: {
-            std::string s = "lambda(";
+            std::string s = "__lambda(";
             for(auto& i: tail) s += i->to_s() + ", ";
-            if(!tail.empty()) s = s.substr(0, s.size() - 2);
+            if(!tail.empty()) s.erase(s.size() - 2, 2);
             return s + ')';
         }
         case Expr::function_call: {
             std::string s = head->to_s() + "(";
             for(auto& i: tail) s += i->to_s() + ", ";
-            if(!tail.empty()) s = s.substr(0, s.size() - 2);
+            if(!tail.empty()) s.erase(s.size() - 2, 2);
             return s + ')';
         }
     }
 }
 
-UFunc UFunc::copy() {
-    std::vector< std::shared_ptr< Tree > > ncontents(contents.size());
-
-    for(int i = 0; i < contents.size(); ++i)
-        ncontents[ i ] = std::make_shared< Tree >(contents[ i ]->copy());
-
-    return {
-        .decl     = std::make_shared< Tree >(decl->copy()),
-        .contents = ncontents
-    };
-}
-
-// todo: 최적화
-Val UFunc::capture() {
-    UFunc ret = this->copy();
-    for(auto& i: ret.contents) i->capture(false);
-    return ret;
-}
-
-Val UFunc::run(const std::vector< Val >& para) {
-    //std::cout << to_s() << '\n';
-    var_stack.resize(var_stack.size() + 1);
-    for(int i = 0; i < para.size(); ++i)
-        var_stack.back()[ decl->tail[ i ]->atom ] = para[ i ];
-    var_stack.back()[ "NYA" ] = this->copy();
-    for(int i = 0; i < contents.size() - 1; Helper::eval_line(contents, i));
-    Val ret = contents[ contents.size() - 1 ]->eval();
-    var_stack.pop_back();
-    return ret;
-}
-
-std::string UFunc::to_s() {
-    std::string s = "{ decl: " + decl->to_s() + ", contents: { ";
-    for(auto& i: contents) s += i->to_s() + ", ";
-    return s.substr(0, s.size() - 2) + " }";
-}
-
-Val Val::copy() {
-    return (type() == Type::UFUNC) ? get< UFunc >().copy() : val;
-}
-
-Val::Type Val::type() {
-    return static_cast< Type >(val.index());
-}
-
-std::string Val::to_s() {
-    switch(type()) {
-        case Type::NONE:  return "None";
-        case Type::UFUNC: return get< UFunc >().to_s();
-        case Type::DFUNC: return "DFunc";
-        case Type::NUM:  return std::to_string(get< F64 >());
-    }
-}
-
-std::string Val::to_c() {
-    switch(type()) {
-        case Type::NONE:  return "None";
-        case Type::UFUNC: return get< UFunc >().to_s();
-        case Type::DFUNC: return "DFunc";
-        case Type::NUM:   return std::string(1, get< F64 >());
-    }
-}
-
-template< typename T >
-T& Val::get() {
-    return std::get< T >(val);
-}
-
-std::shared_ptr< Tree > Helper::read_line(std::vector< std::shared_ptr< Tree > >& container, int line) {
-    while(container.size() <= line) {
-        std::string s;
-        if(lc) std::cout << '\n';
-        lc = false;
-        std::getline(std::cin, s);
-        if(s == "EXIT") std::exit(0);
-        s.erase(0, s.find_first_not_of(' '));
-        if((s = s.substr(0, s.find("//"))).empty()) continue;
-        container.emplace_back(new Tree(s));
-    }
-
-    return container[ line ];
-}
-
-Val Helper::eval_line(std::vector< std::shared_ptr< Tree > >& container, int& line) {
-    int bi = line + 1;
-    std::shared_ptr< Tree > tr1 = Helper::read_line(container, line);
-
-    if(tr1->expr == Tree::Expr::decl_func_start) {
-        for(int t1 = 1; ; ) {
-            std::shared_ptr< Tree > tr2 = read_line(container, ++line);
-            t1 += (tr2->expr == Tree::Expr::decl_func_start)
-                - (tr2->expr == Tree::Expr::decl_func_end);
-            if(t1 == 0) break;
-        }
-
-        return var_stack.back()[ tr1->head->head->atom ] = UFunc(tr1->head, std::vector(container.begin() + bi, container.begin() + line++));
-    }
-
-    ++line;
-    return tr1->eval();
-}
-
 int main() {
     std::vector< std::shared_ptr< Tree > > codes;
-
     var_stack.push_back(std::map< std::string, Val > {
         { "print_num"    , DFunc(Helper::print_num ) },
         { "print_char"   , DFunc(Helper::print_char) },
@@ -465,7 +435,7 @@ int main() {
         { "floor"        , Helper::changer1((F64(*)(F64))(std::round)) },
         { "round"        , Helper::changer1((F64(*)(F64))(std::floor)) }
     });
-    codes.reserve(100000);
+    codes.reserve(10000);
     std::cout << "POTERPRETER READY!\n";
     for(int i = 0; ; Helper::eval_line(codes, i));
     return 0;
