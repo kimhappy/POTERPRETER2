@@ -1,4 +1,4 @@
-// C++17 or above, GCC recommend
+// C++17 or above, GCC recommended
 // todo: capture optimization
 
 #include <bits/stdc++.h>
