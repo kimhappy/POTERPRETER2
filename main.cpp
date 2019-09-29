@@ -1,5 +1,4 @@
 // C++17 or above, GCC recommended
-// todo: capture optimization
 
 #include <bits/stdc++.h>
 
@@ -28,7 +27,6 @@ public:
     UFunc copy();
     Val capture();
     Val run(const std::vector< Val >& para);
-    std::string to_s();
 };
 
 class Val {
@@ -75,7 +73,6 @@ struct Tree {
     Tree copy();
     Val eval();
     void capture(bool flag);
-    std::string to_s();
 };
 
 std::vector< std::map< std::string, Val > > var_stack;
@@ -133,7 +130,7 @@ UFunc UFunc::copy() {
     return { std::make_shared< Tree >(decl->copy()), ncontents };
 }
 
-// todo: 최적화
+// TODO: 최적화
 Val UFunc::capture() {
     UFunc ret = this->copy();
     for(auto& i: ret.contents) i->capture(false);
@@ -151,12 +148,6 @@ Val UFunc::run(const std::vector< Val >& para) {
     return ret;
 }
 
-std::string UFunc::to_s() {
-    std::string s = "{ decl: " + decl->to_s() + ", contents: { ";
-    for(auto& i: contents) s += i->to_s() + ", ";
-    return s.substr(0, s.size() - 2) + " }";
-}
-
 Val Val::copy() {
     return (type() == Type::UFUNC) ? get< UFunc >().copy() : val;
 }
@@ -166,21 +157,11 @@ Val::Type Val::type() {
 }
 
 std::string Val::to_s() {
-    switch(type()) {
-        case Type::NONE:  return "None";
-        case Type::UFUNC: return get< UFunc >().to_s();
-        case Type::DFUNC: return "DFunc";
-        case Type::NUM:   return std::to_string(get< F64 >());
-    }
+    return std::to_string(get< F64 >());
 }
 
 std::string Val::to_c() {
-    switch(type()) {
-        case Type::NONE:  return "None";
-        case Type::UFUNC: return get< UFunc >().to_s();
-        case Type::DFUNC: return "DFunc";
-        case Type::NUM:   return std::string(1, get< F64 >());
-    }
+    return std::string(1, get< F64 >());
 }
 
 template< typename T >
@@ -372,31 +353,6 @@ void Tree::capture(bool flag) {
                 head->capture(flag);
                 return;
             }
-        }
-    }
-}
-
-std::string Tree::to_s() {
-    switch(expr) {
-        case Expr::decl_func_start: return "__decl_function_start(" + head->to_s() + ')';
-        case Expr::decl_func_end:   return "__end";
-        case Expr::to_capture:      return "__to_capture(" + head->to_s() + ')';
-        case Expr::decl_var:        return "__decl_var(" + atom + ", " + head->to_s() + ')';
-        case Expr::assign:          return "__assign(" + atom + ", " + head->to_s() + ')';
-        case Expr::now_capture:     return "__now_capture(" + head->to_s() + ')';
-        case Expr::var:             return atom;
-        case Expr::now_val:         return val.to_s();
-        case Expr::lambda: {
-            std::string s = "__lambda(";
-            for(auto& i: tail) s += i->to_s() + ", ";
-            if(!tail.empty()) s.erase(s.size() - 2, 2);
-            return s + ')';
-        }
-        case Expr::function_call: {
-            std::string s = head->to_s() + "(";
-            for(auto& i: tail) s += i->to_s() + ", ";
-            if(!tail.empty()) s.erase(s.size() - 2, 2);
-            return s + ')';
         }
     }
 }
