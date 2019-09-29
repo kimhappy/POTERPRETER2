@@ -22,6 +22,8 @@ print_char(65)
 A
 ```
 
+[실행](https://wandbox.org/permlink/8A5LJNCHMCdQF4K5)
+
 ***
 
 `//`로 주석을 만듭니다. 코드와 주석 사이에는 공백이 없습니다.
@@ -36,6 +38,8 @@ print_num(10)// 주석
 ```
 10
 ```
+
+[실행](https://wandbox.org/permlink/xSeLIQpPUwW74qER)
 
 ***
 
@@ -60,6 +64,8 @@ print_num(`z = 20)
 20.000000
 ```
 
+[실행](https://wandbox.org/permlink/V6oDgdxBgYp5mj9m)
+
 ***
 
 연산자를 대신할 몇 가지 기본 함수를 제공합니다. `not`, `add`, `sub`, `mul`, `div`, `pow`, `greater`, `less`, `greater_equal`, `less_equal`, `and`, `or`, `same`, `diff`, `if`입니다. 이 중 `and`, `or`, `if`에 대해서는 지연평가가 적용됩니다. 두 개 이상의 인자는 `,`로 구분하되 콤마 뒤에는 한 칸의 공백을 둡니다.
@@ -75,10 +81,12 @@ print_num(if(less(10, 20), 100, 200))
 
 출력:
 ```
-10
-15
-100
+10.000000
+15.000000
+100.000000
 ```
+
+[실행](https://wandbox.org/permlink/mCwXVzvL8xcNlPSV)
 
 ***
 
@@ -148,6 +156,8 @@ adefer()
 30.000000
 ```
 
+[실행](https://wandbox.org/permlink/Pvk08MoYGRhlCO7c)
+
 ***
 
 함수 선언시 `[`과 `]`로 감싼 부분은 캡쳐 예정인 부분입니다. `!` 연산자를 사용해 함수가 해당 부분들을 현재의 맥락에 맞게 캡쳐할 수 있도록 합니다. 캡쳐할 부분이 있으나 캡쳐하지 않은 채로 호출할 수 없습니다.
@@ -193,6 +203,8 @@ hoho()
 40.000000
 30.000000
 ```
+
+[실행](https://wandbox.org/permlink/5Yl5MlXRgbgjoKTz)
 
 ## 예제
 
@@ -265,3 +277,5 @@ for_each(haha, lambda(x)(print_num(x), print_char(10)))
 30.000000
 40.000000
 ```
+
+[실행](https://wandbox.org/permlink/adZJ8i9t9aLnFeRn)
