@@ -43,7 +43,6 @@ print_num(10)// 주석
 
 코드:
 ```
-A
 `x = 10
 `y = 40
 print_num(x)
